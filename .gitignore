@@ -1,3 +1,4 @@
+.idea
 venv
 src/bbox_annotation/frontend/node_modules/
 pyc

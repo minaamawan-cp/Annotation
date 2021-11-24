@@ -2,16 +2,18 @@ import streamlit as st
 import PIL.Image
 import PIL.ImageFilter
 import io
+import os
 import json
 from src.bbox_annotation import st_labelstudio
 from base64 import b64encode, decode
 
 st.set_page_config(layout='wide')
-st.title("Label Studio")
+st.title("Image Annotation")
 
 
 @st.cache
 def url_encoder(image):
+
     img = PIL.Image.open(image)
     blurred_image = img.filter(PIL.ImageFilter.GaussianBlur(5))
 
@@ -19,6 +21,8 @@ def url_encoder(image):
 
     return url or "None"
 
+def listToStringWithoutBrackets(list1):
+    return str(list1).replace('[','').replace(']','')
 
 def pillow_image_to_base64_string(img):
     buffered = io.BytesIO()
@@ -92,14 +96,47 @@ task = {
 results_raw = st_labelstudio(config, interfaces, user, task)
 
 if results_raw is not None:
-    areas = [v for k, v in results_raw['areas'].items()]
 
     results = []
-    for a in areas:
-        results.append({'id': a['id'], 'x': a['x'], 'y': a['y'], 'width': a['width'],
-                        'height': a['height'], 'label': a['results'][0]['value']['rectanglelabels'][0]})
+    json_results = []
+    annt = ''
+    annt_json = ''
+    areas = [v for k, v in results_raw['areas'].items()]
+    filename = os.path.splitext(image_sel)[0]
 
-    with open('Annotation.json', 'w') as outfile:
-        json.dump(results, outfile)
+    for a in areas:
+        annt = {
+            'id': a['id'],
+            'label': a['results'][0]['value']['rectanglelabels'][0],
+            'x': a['x'],
+            'y': a['y'],
+            'width': a['width'],
+            'height': a['height'],
+        }
+
+        results.append(annt)
+
+        annt_json = {
+            'id': a['id'],
+            'label': a['results'][0]['value']['rectanglelabels'][0],
+            'bbox': [
+                a['x'],
+                a['y'],
+                a['width'],
+                a['height'],
+            ]
+        }
+
+        json_results.append(annt_json)
+
+    # Convert List to Dictionary:
+    annotations = {}
+    annotations["Annotations"] = json_results
+
+    # Save JSON File:
+    filename = f'src/images/{filename}.json'
+
+    with open(filename, 'w', encoding='utf-8') as outfile:
+        json.dump(annotations, outfile, ensure_ascii=False, indent=4)
 
     st.table(results)
